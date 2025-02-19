@@ -1,23 +1,16 @@
 //
-//  HomeworkViewController.swift
-//  RxSwift
+//  HomeworkViewModel.swift
+//  UIKit_Week9_A2
 //
-//  Created by Jack on 1/30/25.
+//  Created by 정성윤 on 2/19/25.
 //
 
-import UIKit
-import SnapKit
+import Foundation
+import RxSwift
+import RxCocoa
 
-struct Person: Identifiable {
-    let id = UUID()
-    let name: String
-    let email: String
-    let profileImage: String
-}
-
-class HomeworkViewController: UIViewController {
-    
-    let sampleUsers: [Person] = [
+final class HomeworkViewModel: BaseViewModel {
+    private(set) var sampleUsers: [Person] = [
         Person(name: "Steven", email: "steven.brown@example.com", profileImage: "https://randomuser.me/api/portraits/thumb/men/1.jpg"),
         Person(name: "Mike", email: "mike.wilson@example.com", profileImage: "https://randomuser.me/api/portraits/thumb/men/2.jpg"),
         Person(name: "Emma", email: "emma.taylor@example.com", profileImage: "https://randomuser.me/api/portraits/thumb/women/1.jpg"),
@@ -70,53 +63,48 @@ class HomeworkViewController: UIViewController {
         Person(name: "Ralph", email: "ralph.cox@example.com", profileImage: "https://randomuser.me/api/portraits/thumb/men/26.jpg"),
         Person(name: "Ann", email: "ann.howard@example.com", profileImage: "https://randomuser.me/api/portraits/thumb/women/25.jpg")
     ]
+    private var tapSampleData: [Person] = []
+    private var disposeBag = DisposeBag()
     
-    let tableView = UITableView()
-    lazy var collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout())
-    let searchBar = UISearchBar()
-     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        configure()
-        bind()
-    }
-     
-    private func bind() {
-          
+    struct Input {
+        let selectedTrigger: ControlEvent<Person>
+        let searchTrigger: PublishSubject<String>
     }
     
-    private func configure() {
-        view.backgroundColor = .white
-        view.addSubview(tableView)
-        view.addSubview(collectionView)
-        view.addSubview(searchBar)
-        
-        navigationItem.titleView = searchBar
-         
-        collectionView.register(UserCollectionViewCell.self, forCellWithReuseIdentifier: UserCollectionViewCell.identifier)
-        collectionView.backgroundColor = .lightGray
-        collectionView.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide)
-            make.horizontalEdges.equalToSuperview()
-            make.height.equalTo(50)
-        }
-        
-        tableView.register(PersonTableViewCell.self, forCellReuseIdentifier: PersonTableViewCell.identifier)
-        tableView.backgroundColor = .systemGreen
-        tableView.rowHeight = 100
-        tableView.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide).offset(50)
-            make.horizontalEdges.equalToSuperview()
-            make.bottom.equalToSuperview()
-        }
+    struct Output {
+        let userResult: BehaviorRelay<[Person]>
+        let tapUserResult: BehaviorRelay<[Person]>
     }
     
-    private func layout() -> UICollectionViewFlowLayout {
-        let layout = UICollectionViewFlowLayout()
-        layout.itemSize = CGSize(width: 80, height: 40)
-        layout.scrollDirection = .horizontal
-        return layout
-    }
-
 }
- 
+
+extension HomeworkViewModel {
+    
+    func transform(_ input: Input) -> Output {
+        let tapUserResult: BehaviorRelay<[Person]> = BehaviorRelay(value: [])
+        
+        input.selectedTrigger
+            .bind(with: self) { owner, person in
+                owner.checkPerson(person)
+                tapUserResult.accept((owner.tapSampleData))
+            }.disposed(by: disposeBag)
+        
+        let sampleUsers = BehaviorRelay(value: sampleUsers)
+        input.searchTrigger
+            .bind(with: self) { owner, text in
+                let data = (!text.isEmpty) ? owner.sampleUsers.filter({ $0.name.contains(text) }) : owner.sampleUsers
+                sampleUsers.accept(data)
+            }.disposed(by: disposeBag)
+        
+        return Output(userResult: sampleUsers, tapUserResult: tapUserResult)
+    }
+    
+    private func checkPerson(_ person: Person) {
+        var data = tapSampleData
+        if tapSampleData.contains(person) {
+            data.removeAll(where: { $0 == person })
+        }
+        data.insert(person, at: 0)
+        tapSampleData = data
+    }
+}

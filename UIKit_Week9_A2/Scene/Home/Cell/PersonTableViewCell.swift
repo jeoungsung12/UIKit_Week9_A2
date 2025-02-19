@@ -7,10 +7,12 @@
 
 import UIKit
 import SnapKit
+import Kingfisher
+import RxSwift
+import RxCocoa
 
-final class PersonTableViewCell: UITableViewCell {
-    
-    static let identifier = "PersonTableViewCell"
+final class PersonTableViewCell: BaseTableViewCell, ReusableIdentifier {
+    var disposeBag = DisposeBag()
     
     let usernameLabel: UILabel = {
         let label = UILabel()
@@ -40,21 +42,20 @@ final class PersonTableViewCell: UITableViewCell {
       
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
-        
         self.selectionStyle = .none
-        configure()
+        self.contentView.isUserInteractionEnabled = true
     }
     
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        disposeBag = DisposeBag()
     }
-     
     
-    private func configure() {
-        contentView.addSubview(usernameLabel)
-        contentView.addSubview(profileImageView)
-        contentView.addSubview(detailButton)
-        
+    override func configureHierarchy() {
+        [usernameLabel, profileImageView, detailButton].forEach({ self.contentView.addSubview($0) })
+    }
+    
+    override func configureLayout() {
         profileImageView.snp.makeConstraints {
             $0.centerY.equalToSuperview()
             $0.leading.equalTo(20)
@@ -72,6 +73,13 @@ final class PersonTableViewCell: UITableViewCell {
             $0.trailing.equalToSuperview().inset(20)
             $0.height.equalTo(32)
             $0.width.equalTo(72)
+        }
+    }
+    
+    func configure(_ model: Person) {
+        usernameLabel.text = model.name
+        if let url = URL(string: model.profileImage) {
+            profileImageView.kf.setImage(with: url)
         }
     }
 }
